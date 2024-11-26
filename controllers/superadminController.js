@@ -19,14 +19,14 @@ exports.createAdmin = async (req, res) => {
     }
 
     // Hash the password before saving
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // const hashedPassword = await bcrypt.hash(password, 10);
 
     // Create new admin
     const newAdmin = await User.create({
       name,
       email,
       phone,
-      password: hashedPassword,
+      password,
       role: 'admin', // Set the role to admin
       isVerified: true
     });
@@ -67,7 +67,7 @@ exports.deleteAdmin = async (req, res) => {
       // Find all users with the role of 'admin'
       const admins = await User.findAll({
         where: { role: 'admin' },
-        attributes: ['id', 'name', 'email', 'isVerified', 'createdAt'] // Select relevant fields only
+        attributes: ['id', 'name', 'email','password', 'isVerified', 'createdAt'] // Select relevant fields only
       });
   
       // If there are no admins, return a message
