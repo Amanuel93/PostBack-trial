@@ -81,19 +81,33 @@ exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    const user = await User.findOne({ where: { email } });
+    console.log('Email from request:', email);
+
+    // Find the user by email
+    const user = await User.findOne({ where: { email: email.trim().toLowerCase() } });
+    console.log('User found:', user);
+
     if (!user) {
       return res.status(400).json({ message: 'Invalid username or password.' });
     }
-    console.log(user);
 
     // Check if email is verified
     if (!user.isVerified) {
       return res.status(400).json({ message: 'Please verify your email before logging in.' });
     }
 
-    // Compare password
-    const isMatch = await bcrypt.compare(password, user.password);
+    let isMatch;
+
+    if (user.role === 'admin') {
+      // For admins, compare plain-text password
+      isMatch = password === user.password;
+    } else {
+      // For other users, compare hashed password
+      isMatch = await bcrypt.compare(password, user.password);
+    }
+
+    console.log('Password match:', isMatch);
+
     if (!isMatch) {
       return res.status(400).json({ message: 'Invalid username or password.' });
     }
@@ -102,25 +116,32 @@ exports.loginUser = async (req, res) => {
       id: user.id,
       name: user.name,
       email: user.email,
+      phone:user.phone,
       role: user.role,
       completed: user.completed,
       isVerified: user.isVerified,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
-      // Add any other fields you want to include in the response
+      position:user.position,
+      image:user.image,
+      department:user.department,
+      branch:user.branch,
+      experience_detail:user.experience_detail,
+      birthplace: user.birthplace,
+      years_of_experience:user.years_of_experience,
     };
 
     // Generate JWT token
     const token = jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
     const userDetail = {
-        userResponse,
-        token,
+      userResponse,
+      token,
     };
-    
+
     res.status(200).json(userDetail);
   } catch (error) {
+    console.error('Error logging in:', error);
     res.status(500).json({ message: 'Error logging in.' });
-    console.log(error)
   }
 };
 
@@ -196,4 +217,3 @@ exports.resetPassword = async (req, res) => {
     res.status(500).json({ message: 'Error resetting password.' });
   }
 };
-

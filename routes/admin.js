@@ -45,10 +45,13 @@ router.put('/updateQuestion/:id',composeMiddleware([authenticate,authAdmin]),que
 router.delete('/deleteQuestion/:id',composeMiddleware([authenticate,authAdmin]),questionController.deleteQuestion);
 
 //getting trainees and statistics analysis
-router.get('/getTrainee/:traineeId',composeMiddleware([authenticate,authAdmin]),adminController.getTraineeInfo);
+router.get('/getTraineeInfo/:traineeId',composeMiddleware([authenticate,authAdmin]),adminController.getTraineeInfo);
 router.get('/statistics',composeMiddleware([authenticate,authAdmin]),adminController.getSystemSummary);
 router.get('/pass-fail-summary',composeMiddleware([authenticate,authAdmin]),adminController.getPassFailSummary );
 router.get('/six-month-analysis',composeMiddleware([authenticate,authAdmin]),adminController.getSixMonthActivity );
+router.get('/getAll-trainee',composeMiddleware([authenticate,authAdmin]),adminController.getAllTrainees);
+router.get('/getTrainee/:id',composeMiddleware([authenticate,authAdmin]),adminController.getTraineeById);
+router.get('/getPlannedTraining',composeMiddleware([authenticate,authAdmin]),adminController.getPlannedTrainings);
 
 //create Admin for Super-admins
 router.post('/create-admin',composeMiddleware([authenticate,authSuperAdmin ]),superadminController.createAdmin);

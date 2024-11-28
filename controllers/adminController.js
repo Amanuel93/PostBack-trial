@@ -4,21 +4,74 @@ const { Op } = require('sequelize');
 const moment = require('moment'); 
 const sequelize = require('sequelize');
 
+exports.getTraineeById = async (req, res) => {
+  try {
+    const { id } = req.params; // Extract trainee ID from request parameters
+
+    // Fetch the trainee by ID with role verification
+    const trainee = await User.findOne({
+      where: { id, role: 'trainee' },
+      attributes: ['id', 'name', 'email', 'department', 'position', 'branch','years_of_experience','isVerified','image','role'], // Specify the fields to include
+    });
+
+    // Check if the trainee exists
+    if (!trainee) {
+      return res.status(404).json({ message: 'Trainee not found.' });
+    }
+
+    // Return trainee details
+    res.status(200).json({
+      message: 'Trainee retrieved successfully.',
+      trainee,
+    });
+  } catch (error) {
+    console.error('Error fetching trainee:', error);
+    res.status(500).json({ error: 'An error occurred while fetching the trainee.' });
+  }
+};
+
+exports.getAllTrainees = async (req, res) => {
+  try {
+    // Fetch all users with the role 'trainee'
+    const trainees = await User.findAll({
+      where: { role: 'trainee' },
+      attributes: ['id', 'name', 'email', 'department', 'position'] // Specify the fields to include
+    });
+
+    // Check if no trainees were found
+    if (!trainees || trainees.length === 0) {
+      return res.status(404).json({ message: 'No trainees found.' });
+    }
+
+    // Return the list of trainees
+    res.status(200).json({
+      message: 'Trainees retrieved successfully.',
+      trainees
+    });
+  } catch (error) {
+    console.error('Error fetching trainees:', error);
+    res.status(500).json({ error: 'An error occurred while fetching trainees.' });
+  }
+};
+
 exports.getTraineeInfo = async (req, res) => {
     try {
       const { traineeId } = req.params;
   
       // Find the trainee's progress
       const progress = await TraineeProgress.findAll({
-        where: { userId: traineeId }, // traineeId passed in params
+        where: { 
+          status:'completed',
+          userId: traineeId
+         }, // traineeId passed in params
         include: [
           {
             model: Training,
-            attributes: ['title', 'startDate', 'endDate', 'duration'] // Get relevant training details
+            attributes: ['id','title', 'startDate', 'endDate', 'duration'] // Get relevant training details
           },
           {
             model: User,
-            attributes: ['name', 'email', 'role'], // Get trainee's personal info
+            attributes: ['id','name', 'email','department','position', 'role'], // Get trainee's personal info
           }
         ]
       });
@@ -53,10 +106,10 @@ exports.getTraineeInfo = async (req, res) => {
 
     // Send response with all counts
     res.status(200).json({
-      trainees: traineeCount,
-      admins: adminCount,
-      trainings: trainingCount,
-      questions: questionCount
+      totalTrainees: traineeCount,
+      totalAdmins: adminCount,
+      totalTraining: trainingCount,
+      totalQuestions: questionCount
     });
   } catch (error) {
     console.error('Error fetching system summary:', error);
@@ -120,3 +173,44 @@ exports.getSixMonthActivity = async (req, res) => {
     res.status(500).json({ error: 'Error fetching six-month trainee activity.' });
   }
 };
+
+
+exports.getPlannedTrainings = async (req, res) => {
+  try {
+    // Fetch planned trainings with associated user and training details
+    const plannedTrainings = await TraineeProgress.findAll({
+      where: { status: "planned" }, // Filter only 'planned' trainings
+      include: [
+        {
+          model: User, // Include User details
+          attributes: ["id", "name", "email"], // Specify the fields you want to fetch
+        },
+        {
+          model: Training, // Include Training details
+          attributes: ["id", "title"], // Specify the fields you want to fetch
+        },
+      ],
+    });
+
+    // Transform the data into the desired format
+    const transformedTrainings = plannedTrainings.map((training) => ({
+      id: training.User?.id, // User ID
+      username: training.User?.name || "N/A", // User name
+      email: training.User?.email || "N/A", // User email
+      trainingName: training.Training?.title || "N/A", // Training name
+    }));
+
+    // Return the transformed planned trainings
+    return res.status(200).json({
+      plannedTrainings: transformedTrainings,
+    });
+  } catch (error) {
+    console.error("Error fetching planned trainings:", error);
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while fetching planned trainings.",
+      error: error.message,
+    });
+  }
+};
+

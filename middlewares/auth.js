@@ -26,7 +26,7 @@ exports.authenticate = (req, res, next) => {
 exports.authAdmin = (req, res, next) => {
   const { role } = req.user;
 
-  if (role !== 'admin' && role !== 'super admin') {
+  if (role !== 'admin' && role !== 'super-admin') {
     return res.status(403).json({ message: 'Access denied. Admins only.' });
   }
 

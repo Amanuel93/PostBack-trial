@@ -19,7 +19,7 @@ module.exports = (sequelize, DataTypes) => {
       type: DataTypes.DATE
     },
     status: {
-      type: DataTypes.ENUM('completed', 'in-progress', 'expired'),
+      type: DataTypes.ENUM('completed', 'in-progress', 'expired','planned'),
       defaultValue: 'in-progress'
     },
     pass: {

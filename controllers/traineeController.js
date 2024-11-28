@@ -1,9 +1,9 @@
 const {TraineeProgress,Answer,Training,Question,User} = require('../models');
 const { sendResult } = require('../utils/mailer'); // Nodemailer
+const { sendMail } = require('../utils/mailer'); 
 const upload = require('../config/multerConfig'); 
 const multer = require('multer');
 const { Op } = require('sequelize');
-// const { io } = require('../server');
 
 // Start training
 exports.startTraining = async (req, res) => {
@@ -158,49 +158,60 @@ exports.startTraining = async (req, res) => {
       }
   
       // Check if the planned date is within the training's start and end date
-      const plannedDateObj = new Date(plannedDate);
-      if (plannedDateObj < training.startDate || plannedDateObj > training.endDate) {
-        return res.status(400).json({
-          message: 'Planned date must be between the training start and end date. Please select a valid date.'
-        });
+      // const plannedDateObj = new Date(plannedDate);
+  
+      // Find the trainee's progress for this training
+      const progress = await TraineeProgress.findOne({
+        where: {
+          userId: traineeId,
+          trainingId: trainingId,
+        },
+      });
+  
+      if (progress) {
+        // Check if the training is in progress
+        if (progress.status === 'in-progress') {
+          return res.status(400).json({ message: 'The training is in progress. You cannot take it again.' });
+        }
+  
+        // Check if the training is completed and the trainee passed
+        if (progress.status === 'completed' && progress.pass) {
+          return res.status(400).json({ message: 'You have already completed and passed this training.' });
+        }
       }
   
-      // Find or create the progress for this trainee and training
-      const [progress, created] = await TraineeProgress.findOrCreate({
+      // If no progress or not completed, create or update the progress
+      const [updatedProgress, created] = await TraineeProgress.findOrCreate({
         where: {
           userId: traineeId,
           trainingId: trainingId,
         },
         defaults: {
           status: 'planned',
-          startTime: plannedDateObj,
-        }
+          startTime: plannedDate,
+        },
       });
   
       if (!created) {
         // Update the planned date if already enrolled
-        progress.startTime = plannedDateObj;
-        progress.status = 'planned';
-        await progress.save();
+        updatedProgress.startTime = plannedDate;
+        updatedProgress.status = 'planned';
+        await updatedProgress.save();
       }
   
       // Notify the trainee
       const message = `Your training for ${training.title} has been planned for ${plannedDate}.`;
-      await Notification.create({ recipientId: trainee.id, message, notificationType: 'email' });
       await sendMail(trainee.email, 'Training Planned', message);
   
-      // Emit real-time notification (if applicable)
-      io.to(traineeId).emit('notification', { message, notificationType: 'in-app' });
-  
-      res.status(200).json({ message: 'Training successfully planned', progress });
+      res.status(200).json({ message: 'Training successfully planned', progress: updatedProgress });
     } catch (error) {
       console.error('Error in planning training:', error);
       res.status(500).json({ message: 'An error occurred while planning the training', error });
     }
   };
 
-exports.completeProfile = async (req, res) => {
-  upload.single('image')(req, res, async (err) => {
+  exports.completeProfile = async (req, res) => {
+    upload.single('image')(req, res, async (err) => {
     if (err instanceof multer.MulterError) {
       return res.status(400).json({ error: 'Multer error during file upload', details: err.message });
     } else if (err) {
@@ -299,3 +310,52 @@ exports.validateChapterProgress = async (req, res) => {
   }
 };
 
+exports.getMyTrainings = async (req, res) => {
+  try {
+    const traineeId = req.user?.id;
+
+    const trainings = await TraineeProgress.findAll({
+      where: { 
+        userId: traineeId ,
+        status:"completed"
+      }, // Filter by logged-in trainee's ID
+      attributes: ['startTime', 'endTime', 'status', 'score'], // Include relevant fields from TraineeProgress
+      include: [
+        {
+          model: Training,
+          attributes: ['title'], // Include the name of the training
+        },
+      ],
+    });
+
+    if (!trainings.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'No trainings found for this trainee.',
+      });
+    }
+
+    // Transform data for response
+    const response = trainings.map((training) => ({
+      trainingName: training.Training.name, // Training name from the associated Training model
+      status: training.status,
+      score: training.score,
+      startTime: training.startTime,
+      endTime: training.endTime,
+    }));
+
+    // Send response
+    return res.status(200).json({
+      success: true,
+      message: 'Trainings fetched successfully.',
+      data: response,
+    });
+  } catch (error) {
+    console.error('Error fetching trainings:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An error occurred while fetching trainings.',
+      error: error.message,
+    });
+  }
+};
