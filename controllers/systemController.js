@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const {User} = require('../models'); // Adjust the path to your User model as needed
+const { TraineeProgress } = require('../models');
 
 exports.createSuperAdminIfNotExists = async () => {
     try {
@@ -30,3 +31,21 @@ exports.createSuperAdminIfNotExists = async () => {
       console.error('Error creating superadmin:', error);
     }
   };
+
+  exports.autoSubmitTraining = async () => {
+    const currentTime = new Date();
+    const ongoingTrainings = await TraineeProgress.findAll({
+      where: {
+        status: 'in-progress',
+        endTime: { [Op.lte]: currentTime }, // Check for trainings where the end time has passed
+      },
+    });
+  
+    for (const progress of ongoingTrainings) {
+      if (progress.status === 'in-progress' && currentTime >= progress.endTime) {
+        progress.status = 'expired'; // Set status to expired if not completed before endTime
+        await progress.save();
+      }
+    }
+  };
+  

@@ -9,6 +9,7 @@ const dotenv = require('dotenv');
 dotenv.config();
 const createSuperAdminIfNotExists = require('./controllers/systemController')
 const path = require('path');
+const cron = require('node-cron');
 
 const corsOptions = {
   origin: 'http://localhost:5173', // Replace with your frontend's domain
@@ -28,10 +29,15 @@ app.use('/api/v1/trainee', traineeRoutes);
 // Static file serving for images
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+cron.schedule('* * * * *', async () => {
+  console.log('Checking ongoing training sessions...');
+  await autoSubmitTraining();
+});
+
 // Test the database connection and sync models
 db.sequelize.authenticate()
   .then(() => {
-    console.log('Database connected...');
+    console.log('Database connected.');
     return db.sequelize.sync({force:false}); // Sync models with the database
   })
   .then(() => {

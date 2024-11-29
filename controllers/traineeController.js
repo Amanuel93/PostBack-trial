@@ -5,53 +5,126 @@ const upload = require('../config/multerConfig');
 const multer = require('multer');
 const { Op } = require('sequelize');
 
-// Start training
-exports.startTraining = async (req, res) => {
-    try {
-      const { passcode } = req.body;
-      const { trainingId } = req.params;
-      const traineeId = req.user.id; // assuming JWT auth
-  
-      // Find the training by ID
-      const training = await Training.findByPk(trainingId);
-  
-      if (!training) {
-        return res.status(404).json({ message: 'Training not found' });
-      }
-  
-      // Check if the passcode is correct
-      if (training.passcode !== passcode) {
-        return res.status(400).json({ message: 'Incorrect passcode' });
-      }
-  
-      // Check if the trainee has already started the training
-      const [progress, created] = await TraineeProgress.findOrCreate({
-        where: {
-          userId: traineeId,
-          trainingId: trainingId,
-        },
-        defaults: {
-          status: 'in-progress',
-          // startTime: startTime,
-          // endTime: endTime
-        }
-      });
-  
-      if (!created && progress.status !== 'in-progress') {
-        return res.status(400).json({ message: 'Training has already been completed or expired.' });
-      }
-      
-      return res.status(200).json({
-        message: 'Training started successfully',
-        progress,
-        // startTime,
-        // endTime,
-      });
-    } catch (error) {
-      console.error('Error starting training:', error);
-      return res.status(500).json({ message: 'Error starting training', error: error.message });
+// Helper function to check and update progress when training ends
+const checkTrainingEnd = async (progress) => {
+  const currentTime = new Date();
+  if (currentTime >= progress.endTime) {
+    if (progress.status !== 'completed' && progress.status !== 'expired') {
+      progress.status = 'expired'; // Mark as expired if not completed in time
+      await progress.save();
     }
-  };
+  }
+};
+
+// Start training
+// exports.startTraining = async (req, res) => {
+//     try {
+//       const { passcode } = req.body;
+//       const { trainingId } = req.params;
+//       const traineeId = req.user.id; // assuming JWT auth
+  
+//       // Find the training by ID
+//       const training = await Training.findByPk(trainingId);
+  
+//       if (!training) {
+//         return res.status(404).json({ message: 'Training not found' });
+//       }
+  
+//       // Check if the passcode is correct
+//       if (training.passcode !== passcode) {
+//         return res.status(400).json({ message: 'Incorrect passcode' });
+//       }
+  
+//       // Check if the trainee has already started the training
+//       const [progress, created] = await TraineeProgress.findOrCreate({
+//         where: {
+//           userId: traineeId,
+//           trainingId: trainingId,
+//         },
+//         defaults: {
+//           status: 'in-progress',
+//           // startTime: startTime,
+//           // endTime: endTime
+//         }
+//       });
+  
+//       if (!created && progress.status !== 'in-progress') {
+//         return res.status(400).json({ message: 'Training has already been completed or expired.' });
+//       }
+      
+//       return res.status(200).json({
+//         message: 'Training started successfully',
+//         progress,
+//         // startTime,
+//         // endTime,
+//       });
+//     } catch (error) {
+//       console.error('Error starting training:', error);
+//       return res.status(500).json({ message: 'Error starting training', error: error.message });
+//     }
+//   };
+
+exports.startTraining = async (req, res) => {
+  try {
+    const { passcode } = req.body;
+    const { trainingId } = req.params;
+    const traineeId = req.user.id; // assuming JWT auth
+
+    // Find the training by ID
+    const training = await Training.findByPk(trainingId);
+
+    if (!training) {
+      return res.status(404).json({ message: 'Training not found' });
+    }
+
+    // Check if the passcode is correct
+    if (training.passcode !== passcode) {
+      return res.status(400).json({ message: 'Incorrect passcode' });
+    }
+
+    // Calculate startTime and endTime
+    const startTime = new Date(); // Current time when training starts
+
+    // Parse the duration in hours:minutes format (e.g., '02:30')
+    const [hours, minutes] = training.duration.split(':').map(Number);
+    const endTime = new Date(startTime.getTime() + (hours * 60 * 60 * 1000) + (minutes * 60 * 1000)); // Add duration to start time
+
+    // Check if the trainee has already started the training
+    const [progress, created] = await TraineeProgress.findOrCreate({
+      where: {
+        userId: traineeId,
+        trainingId: trainingId,
+      },
+      defaults: {
+        status: 'in-progress',
+        startTime: startTime,
+        endTime: endTime,
+      },
+    });
+
+    if (!created && progress.status !== 'in-progress') {
+      return res.status(400).json({ message: 'Training has already been completed or expired.' });
+    }
+
+    // Update the existing record if not newly created
+    if (!created) {
+      progress.status = 'in-progress';
+      progress.startTime = startTime;
+      progress.endTime = endTime;
+      await progress.save();
+    }
+
+    await checkTrainingEnd(progress);
+
+    return res.status(200).json({
+      message: 'Training started successfully',
+      progress,
+    });
+  } catch (error) {
+    console.error('Error starting training:', error);
+    return res.status(500).json({ message: 'Error starting training', error: error.message });
+  }
+};
 
   exports.submitAndEvaluate = async (req, res) => {
     const { trainingId } = req.params;
@@ -115,7 +188,6 @@ exports.startTraining = async (req, res) => {
       progress.score = scorePercentage;
       progress.status = 'completed';
       progress.pass = scorePercentage >= 70;
-      progress.endTime = new Date(); 
   
       // Save the updated progress
       await progress.save();
