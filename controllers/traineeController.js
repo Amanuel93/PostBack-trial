@@ -102,7 +102,7 @@ exports.startTraining = async (req, res) => {
       },
     });
 
-    if (!created && progress.status !== 'in-progress') {
+    if (!created && progress.status !== 'in-progress' && progress.status !== "planned") {
       return res.status(400).json({ message: 'Training has already been completed or expired.' });
     }
 
@@ -126,10 +126,212 @@ exports.startTraining = async (req, res) => {
   }
 };
 
+  // exports.submitAndEvaluate = async (req, res) => {
+  //   const { trainingId } = req.params;
+  //   const traineeId = req.user.id; // assuming JWT auth
+  //   console.log(traineeId);
+  //   const { answers: submittedAnswers } = req.body;
+  
+  //   try {
+  //     // Find the trainee progress for this user and training
+  //     const progress = await TraineeProgress.findOne({
+  //       where: {
+  //         userId: traineeId,
+  //         trainingId: trainingId,
+  //         status: 'in-progress'
+  //       }
+  //     });
+  
+  //     if (!progress) {
+  //       return res.status(404).json({ message: 'Training progress not found or already submitted.' });
+  //     }
+  
+  //     if (!submittedAnswers || submittedAnswers.length === 0) {
+  //       return res.status(400).json({ message: 'No answers submitted.' });
+  //     }
+  
+  //     let correctAnswersCount = 0;
+  //     const totalQuestions = submittedAnswers.length;
+  
+  //     // Loop through each submitted answer to evaluate
+  //     for (const submittedAnswer of submittedAnswers) {
+  //       const { questionId, selectedOption } = submittedAnswer;
+  
+  //       // Find the corresponding question
+  //       const question = await Question.findByPk(questionId);
+  
+  //       if (!question) {
+  //         return res.status(404).json({ message: `Question with ID ${questionId} not found.` });
+  //       }
+  
+  //       // Check if the submitted answer is correct
+  //       const isCorrect = question.correctAnswer === selectedOption;
+  
+  //       if (isCorrect) {
+  //         correctAnswersCount++;
+  //       }
+  
+  //       // Save the answer in the database (if needed)
+  //       await Answer.create({
+  //         userId: traineeId,
+  //         trainingId: trainingId,
+  //         questionId: questionId,
+  //         selectedOption,
+  //         isCorrect
+  //       });
+  //     }
+  
+  //     // Calculate the score percentage
+  //     const scorePercentage = (correctAnswersCount / totalQuestions) * 100;
+  
+  //     // Update the progress with the calculated score and pass/fail status
+  //     progress.score = scorePercentage;
+  //     progress.status = 'completed';
+  //     progress.pass = scorePercentage >= 70;
+  
+  //     // Save the updated progress
+  //     await progress.save();
+  
+  //     // Send email notification with the result
+  //     const trainee = await User.findByPk(traineeId);
+  //     const resultMessage = progress.pass
+  //       ? `Congratulations! You passed the training with a score of ${scorePercentage.toFixed(2)}%.`
+  //       : `Unfortunately, you did not pass the training. Your score was ${scorePercentage.toFixed(2)}%.`;
+  
+  //     await sendResult(trainee.email, 'Training Evaluation Result', resultMessage);
+  
+  //     res.status(200).json({
+  //       message: 'Training submitted and evaluated successfully.',
+  //       score: scorePercentage,
+  //       pass: progress.pass
+  //     });
+  //   } catch (error) {
+  //     console.error('Error submitting and evaluating training:', error);
+  //     res.status(500).json({ message: 'Internal server error.' });
+  //   }
+  // };
+
+  // exports.submitAndEvaluate = async (req, res) => {
+  //   const { trainingId } = req.params;
+  //   const traineeId = req.user.id; // Assuming JWT auth
+  //   const { answers: submittedAnswers } = req.body;
+  
+  //   try {
+  //     // Find the trainee progress for this user and training
+  //     const progress = await TraineeProgress.findOne({
+  //       where: {
+  //         userId: traineeId,
+  //         trainingId: trainingId,
+  //         status: 'in-progress',
+  //       },
+  //     });
+
+  //     console.log(submittedAnswers);
+  
+  //     if (!progress) {
+  //       return res
+  //         .status(404)
+  //         .json({ message: 'Training progress not found or already submitted.' });
+  //     }
+  
+  //     if (!submittedAnswers || submittedAnswers.length === 0) {
+  //       return res.status(400).json({ message: 'No answers submitted.' });
+  //     }
+  
+  //     // Filter to keep only the last submitted answer for each questionId
+  //     const uniqueAnswers = {};
+  //     submittedAnswers.forEach((answer) => {
+  //       uniqueAnswers[answer.questionId] = answer;
+  //     });
+  
+  //     const filteredAnswers = Object.values(uniqueAnswers);
+  
+  //     // Get all questions for the training
+  //     const trainingQuestions = await Question.findAll({ where: { trainingId } });
+  //     const totalQuestions = trainingQuestions.length;
+  
+  //     if (totalQuestions === 0) {
+  //       return res.status(404).json({ message: 'No questions found for this training.' });
+  //     }
+  
+  //     // Map to store correct answers by questionId for quick lookup
+  //     const correctAnswersMap = trainingQuestions.reduce((map, question) => {
+  //       map[question.id] = question.correctAnswer.toLowerCase();
+  //       return map;
+  //     }, {});
+  
+  //     let correctAnswersCount = 0;
+  
+  //     // Evaluate submitted answers
+  //     for (const submittedAnswer of filteredAnswers) {
+  //       const { questionId, selectedOption } = submittedAnswer;
+  
+  //       if (!correctAnswersMap[questionId]) {
+  //         return res
+  //           .status(404)
+  //           .json({ message: `Question with ID ${questionId} not found.` });
+  //       }
+  
+  //       // Compare answer (case-insensitive)
+  //       const isCorrect = correctAnswersMap[questionId] === selectedOption.toLowerCase();
+  
+  //       if (isCorrect) {
+  //         correctAnswersCount++;
+  //       }
+  
+  //       // Save the answer in the database
+  //       await Answer.create({
+  //         userId: traineeId,
+  //         trainingId,
+  //         questionId,
+  //         selectedOption,
+  //         isCorrect,
+  //       });
+  //     }
+  
+  //     // Calculate unanswered questions
+  //     const answeredQuestionIds = filteredAnswers.map((answer) => answer.questionId);
+  //     const unansweredQuestionsCount = totalQuestions - answeredQuestionIds.length;
+  
+  //     // Subtract unanswered questions from correct count
+  //     correctAnswersCount -= unansweredQuestionsCount;
+  
+  //     // Ensure the correct answers count does not drop below 0
+  //     correctAnswersCount = Math.max(correctAnswersCount, 0);
+  
+  //     // Calculate score percentage
+  //     const scorePercentage = (correctAnswersCount / totalQuestions) * 100;
+  
+  //     // Update the progress with score and pass/fail status
+  //     progress.score = scorePercentage;
+  //     progress.status = 'completed';
+  //     progress.pass = scorePercentage >= 70;
+  
+  //     // Save the updated progress
+  //     await progress.save();
+  
+  //     // Send email notification with the result
+  //     const trainee = await User.findByPk(traineeId);
+  //     const resultMessage = progress.pass
+  //       ? `Congratulations! You passed the training with a score of ${scorePercentage.toFixed(2)}%.`
+  //       : `Unfortunately, you did not pass the training. Your score was ${scorePercentage.toFixed(2)}%.`;
+  
+  //     await sendResult(trainee.email, 'Training Evaluation Result', resultMessage);
+  
+  //     res.status(200).json({
+  //       message: 'Training submitted and evaluated successfully.',
+  //       score: scorePercentage,
+  //       pass: progress.pass,
+  //     });
+  //   } catch (error) {
+  //     console.error('Error submitting and evaluating training:', error);
+  //     res.status(500).json({ message: 'Internal server error.' });
+  //   }
+  // };
+
   exports.submitAndEvaluate = async (req, res) => {
     const { trainingId } = req.params;
-    const traineeId = req.user.id; // assuming JWT auth
-    console.log(traineeId);
+    const traineeId = req.user.id; // Assuming JWT auth
     const { answers: submittedAnswers } = req.body;
   
     try {
@@ -138,53 +340,76 @@ exports.startTraining = async (req, res) => {
         where: {
           userId: traineeId,
           trainingId: trainingId,
-          status: 'in-progress'
-        }
+          status: 'in-progress',
+        },
       });
   
       if (!progress) {
-        return res.status(404).json({ message: 'Training progress not found or already submitted.' });
+        return res
+          .status(404)
+          .json({ message: 'Training progress not found or already submitted.' });
       }
   
-      if (!submittedAnswers || submittedAnswers.length === 0) {
-        return res.status(400).json({ message: 'No answers submitted.' });
+      // Get all questions for the training
+      const trainingQuestions = await Question.findAll({ where: { trainingId } });
+      const totalQuestions = trainingQuestions.length;
+  
+      if (totalQuestions === 0) {
+        return res.status(404).json({ message: 'No questions found for this training.' });
       }
+  
+      // Map correct answers by questionId for quick lookup
+      const correctAnswersMap = trainingQuestions.reduce((map, question) => {
+        map[question.id] = question.correctAnswer.toLowerCase();
+        return map;
+      }, {});
+  
+      // Prepare submitted answers map (for quick lookup)
+      const submittedAnswersMap = submittedAnswers.reduce((map, answer) => {
+        map[answer.questionId] = answer.selectedOption.toLowerCase();
+        return map;
+      }, {});
   
       let correctAnswersCount = 0;
-      const totalQuestions = submittedAnswers.length;
+      const evaluatedAnswers = [];
   
-      // Loop through each submitted answer to evaluate
-      for (const submittedAnswer of submittedAnswers) {
-        const { questionId, selectedOption } = submittedAnswer;
+      // Evaluate all questions
+      for (const question of trainingQuestions) {
+        const questionId = question.id;
+        const selectedOption =
+          submittedAnswersMap[questionId] !== undefined
+            ? submittedAnswersMap[questionId]
+            : "unanswered";
   
-        // Find the corresponding question
-        const question = await Question.findByPk(questionId);
-  
-        if (!question) {
-          return res.status(404).json({ message: `Question with ID ${questionId} not found.` });
-        }
-  
-        // Check if the submitted answer is correct
-        const isCorrect = question.correctAnswer === selectedOption;
+        const isCorrect =
+          selectedOption !== "unanswered" &&
+          correctAnswersMap[questionId] === selectedOption;
   
         if (isCorrect) {
           correctAnswersCount++;
         }
   
-        // Save the answer in the database (if needed)
+        // Save the evaluated answer
+        evaluatedAnswers.push({
+          questionId,
+          selectedOption,
+          isCorrect,
+        });
+  
+        // Persist answer in the database
         await Answer.create({
           userId: traineeId,
-          trainingId: trainingId,
-          questionId: questionId,
+          trainingId,
+          questionId,
           selectedOption,
-          isCorrect
+          isCorrect,
         });
       }
   
-      // Calculate the score percentage
+      // Calculate score percentage
       const scorePercentage = (correctAnswersCount / totalQuestions) * 100;
   
-      // Update the progress with the calculated score and pass/fail status
+      // Update the progress with score and pass/fail status
       progress.score = scorePercentage;
       progress.status = 'completed';
       progress.pass = scorePercentage >= 70;
@@ -202,15 +427,16 @@ exports.startTraining = async (req, res) => {
   
       res.status(200).json({
         message: 'Training submitted and evaluated successfully.',
+        evaluatedAnswers,
         score: scorePercentage,
-        pass: progress.pass
+        pass: progress.pass,
       });
     } catch (error) {
       console.error('Error submitting and evaluating training:', error);
       res.status(500).json({ message: 'Internal server error.' });
     }
   };
-
+  
   exports.planTraining = async (req, res) => {
     try {
       const { plannedDate } = req.body;
@@ -391,7 +617,7 @@ exports.getMyTrainings = async (req, res) => {
         userId: traineeId ,
         status:"completed"
       }, // Filter by logged-in trainee's ID
-      attributes: ['startTime', 'endTime', 'status', 'score'], // Include relevant fields from TraineeProgress
+      attributes: ['startTime', 'endTime', 'status', 'score','pass'], // Include relevant fields from TraineeProgress
       include: [
         {
           model: Training,
@@ -409,11 +635,12 @@ exports.getMyTrainings = async (req, res) => {
 
     // Transform data for response
     const response = trainings.map((training) => ({
-      trainingName: training.Training.name, // Training name from the associated Training model
+      trainingName: training.Training.title, // Training name from the associated Training model
       status: training.status,
       score: training.score,
       startTime: training.startTime,
       endTime: training.endTime,
+      pass:training.pass
     }));
 
     // Send response

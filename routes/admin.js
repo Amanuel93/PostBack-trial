@@ -40,7 +40,7 @@ router.put('/updateChapter/:id',composeMiddleware([authenticate,authAdmin]),chap
 router.delete('/deleteChapter/:id',composeMiddleware([authenticate,authAdmin]),chapterController.deleteChapter);
 
 //create Question
-router.post('/createQuestions/:chapterId',composeMiddleware([authenticate,authAdmin]),questionController.createQuestions);
+router.post('/createQuestions/:chapterId/:trainingId',composeMiddleware([authenticate,authAdmin]),questionController.createQuestions);
 router.put('/updateQuestion/:id',composeMiddleware([authenticate,authAdmin]),questionController.updateQuestion);
 router.delete('/deleteQuestion/:id',composeMiddleware([authenticate,authAdmin]),questionController.deleteQuestion);
 

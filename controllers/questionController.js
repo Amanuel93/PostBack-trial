@@ -5,7 +5,7 @@ const { Op } = require('sequelize');
 exports.createQuestions = async (req, res) => {
   try {
     const { questions } = req.body;
-    const { chapterId } = req.params;
+    const { chapterId,trainingId } = req.params;
 
     if (!Array.isArray(questions) || questions.length === 0) {
       return res.status(400).json({ message: 'Questions array is required and cannot be empty' });
@@ -32,6 +32,7 @@ exports.createQuestions = async (req, res) => {
         options: type === 'multiple-choice' ? options : null,
         correctAnswer,
         chapterId,
+        trainingId,
         type,
       };
     });

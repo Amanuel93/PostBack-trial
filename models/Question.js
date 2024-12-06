@@ -7,6 +7,7 @@ module.exports = (sequelize, DataTypes) => {
       // Define associations here
       Question.belongsTo(models.Chapter, { foreignKey: 'chapterId' });
       models.Chapter.hasMany(Question, { foreignKey: 'chapterId' });
+      models.Training.hasMany(Question, { foreignKey: 'trainingId' });
     }
   }
 
